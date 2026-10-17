@@ -24,7 +24,13 @@ from sklearn.metrics import (accuracy_score, classification_report,
                              recall_score)
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from xgboost import XGBClassifier
+
+try:
+    from xgboost import XGBClassifier
+    _XGBOOST_AVAILABLE = True
+except Exception:  # e.g. missing OpenMP runtime (libomp) on macOS
+    XGBClassifier = None
+    _XGBOOST_AVAILABLE = False
 
 from preprocess import (CATEGORICAL_FEATURES, NUMERIC_FEATURES,
                         build_preprocessor, build_typical_conditions,
@@ -106,15 +112,23 @@ def main() -> None:
 
     contenders = {
         "Random Forest": (RandomForestClassifier(**RF_PARAMS), y_train, y_test, False),
-        # XGBoost needs integer labels.
-        "XGBoost": (XGBClassifier(n_estimators=200, max_depth=6,
-                                  learning_rate=0.08, subsample=0.9,
-                                  colsample_bytree=0.9, random_state=42,
-                                  n_jobs=-1, eval_metric="mlogloss"),
-                    y_train_enc, y_test_enc, True),
-        "Logistic Regression": (LogisticRegression(max_iter=2000, n_jobs=-1),
-                                y_train, y_test, False),
     }
+    if _XGBOOST_AVAILABLE:
+        # XGBoost needs integer labels.
+        contenders["XGBoost"] = (
+            XGBClassifier(n_estimators=200, max_depth=6,
+                          learning_rate=0.08, subsample=0.9,
+                          colsample_bytree=0.9, random_state=42,
+                          n_jobs=-1, eval_metric="mlogloss"),
+            y_train_enc, y_test_enc, True,
+        )
+    else:
+        print("  (XGBoost skipped: library could not be loaded "
+              "— on macOS run `brew install libomp` to enable it)")
+    contenders["Logistic Regression"] = (
+        LogisticRegression(max_iter=2000, n_jobs=-1),
+        y_train, y_test, False,
+    )
     results = []
     print("\n=== Model comparison (test set) ===")
     for name, (clf, yt_tr, yt_te, encoded) in contenders.items():
