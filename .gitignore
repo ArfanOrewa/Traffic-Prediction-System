@@ -1,0 +1,14 @@
+# Generated dataset (recreate with: python generate_data.py)
+data/*.csv
+
+# Trained model binary (recreate with: python model.py)
+models/*.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Streamlit
+.streamlit/
